@@ -1,15 +1,19 @@
 [package]
 name = "egui_timeline"
 description = "A general timeline widget for egui, for working with time-based media and control."
-version = "0.3.0"
+version = "0.4.0"
 authors = ["mitchmindtree <mail@mitchellnordine.com>"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 keywords = ["egui", "timeline", "sequencer", "automation", "daw"]
 repository = "https://github.com/mitchmindtree/egui_timeline.git"
 homepage = "https://github.com/mitchmindtree/egui_timeline"
-edition = "2018"
+edition = "2021"
+rust-version = "1.92"
 
 [dependencies]
-egui = "0.29.1"
-egui_plot = "0.29"
+egui = "0.34"
+egui_plot = "0.35"
+
+[dev-dependencies]
+eframe = "0.34"
