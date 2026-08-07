@@ -1,21 +1,25 @@
-use super::ruler::MusicalInfo;
+//! Timeline playhead widgets.
 
-/// For retrieving information about the playhead.
+use crate::{ruler::MusicalInfo, PlayheadStyle, TimeAxis};
+
+/// Provides a playhead position and musical scale.
 pub trait Info: MusicalInfo {
-    /// The location of the playhead in ticks relative to the start of the timeline.
+    /// Returns the playhead offset from the left edge of the visible timeline.
     fn playhead_ticks(&self) -> f32;
 }
 
-/// For handling interaction with the playhead.
+/// Handles playhead movement.
 pub trait Interaction {
-    /// Set the location of the playhead in ticks.
+    /// Sets the playhead offset from the left edge of the visible timeline.
     fn set_playhead_ticks(&mut self, ticks: f32);
 }
 
-/// For both providing info and handling interaction.
+/// Combines playhead information and interaction.
 pub trait PlayheadApi: Info + Interaction {}
 
-/// Playhead configuration for a timeline widget.
+impl<T> PlayheadApi for T where T: Info + Interaction {}
+
+/// Timeline playhead configuration.
 pub struct Playhead {
     extend_beyond_last_track: f32,
     extend_to_available_height: bool,
@@ -23,47 +27,53 @@ pub struct Playhead {
 }
 
 impl Playhead {
+    /// Default extension below the final laid-out row.
     pub const DEFAULT_EXTEND_BEYOND_LAST_TRACK: f32 = 0.0;
+    /// Whether the default playhead spans all available timeline height.
     pub const DEFAULT_EXTEND_TO_AVAILABLE_HEIGHT: bool = false;
+    /// Default painted and interactive width in screen points.
     pub const DEFAULT_WIDTH: f32 = 1.0;
 
-    /// Create a new default playhead.
+    /// Creates a playhead with the default geometry.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Whether or not to extend the playhead to the total available height.
-    ///
-    /// This is useful if the timeline occupies a main `CentralPanel` and you
-    /// want the playhead to extend across the entire available track space,
-    /// rather than just the occupied track space.
-    ///
-    /// Default: `false`
-    pub fn extend_to_available_height(mut self, b: bool) -> Self {
-        self.extend_to_available_height = b;
+    /// Chooses whether the line reaches the timeline's available bottom edge.
+    pub fn extend_to_available_height(mut self, extend: bool) -> Self {
+        self.extend_to_available_height = extend;
         self
     }
 
-    /// Extend the playhead beyond the last track by the given amount.
-    ///
-    /// Only applies if `extend_to_available_height` is `false`.
-    ///
-    /// Default: `0.0`
-    pub fn extend_beyond_last_track(mut self, f: f32) -> Self {
-        self.extend_beyond_last_track = f;
+    /// Extends the line below the last row when available-height mode is off.
+    pub fn extend_beyond_last_track(mut self, extension: f32) -> Self {
+        self.extend_beyond_last_track = extension;
         self
     }
 
-    /// Specify the width of the playhead rect.
-    ///
-    /// Default: `1.0`
+    /// Sets the painted and interactive width in screen points.
     pub fn width(mut self, width: f32) -> Self {
         self.width = width;
         self
     }
+
+    /// Returns the painted playhead rectangle for the current row layout.
+    fn rect(&self, x: f32, timeline_rect: egui::Rect, tracks_bottom: f32) -> egui::Rect {
+        let half_width = self.width * 0.5;
+        let bottom = if self.extend_to_available_height {
+            timeline_rect.bottom()
+        } else {
+            tracks_bottom + self.extend_beyond_last_track
+        };
+        egui::Rect::from_min_max(
+            egui::pos2(x - half_width, timeline_rect.top()),
+            egui::pos2(x + half_width, bottom),
+        )
+    }
 }
 
 impl Default for Playhead {
+    /// Returns a one-point-wide playhead with no extra extension.
     fn default() -> Self {
         Self {
             extend_beyond_last_track: Self::DEFAULT_EXTEND_BEYOND_LAST_TRACK,
@@ -73,9 +83,7 @@ impl Default for Playhead {
     }
 }
 
-impl<T> PlayheadApi for T where T: Info + Interaction {}
-
-/// Set the playhead widget - a thin line for indicating progress through the timeline.
+/// Shows the callback-driven playhead.
 pub fn set(
     ui: &mut egui::Ui,
     api: &mut dyn PlayheadApi,
@@ -83,44 +91,61 @@ pub fn set(
     tracks_bottom: f32,
     playhead: Playhead,
 ) -> egui::Response {
-    // Allocate a thin `Rect` over the timeline at the playhead.
-    let playhead_ticks = api.playhead_ticks();
-    let playhead_x = timeline_rect.left() + playhead_ticks / api.ticks_per_point();
-    let half_w = playhead.width * 0.5;
-    let top = timeline_rect.top();
-    let bottom = if playhead.extend_to_available_height {
-        timeline_rect.bottom()
-    } else {
-        tracks_bottom + playhead.extend_beyond_last_track
-    };
-    let min = egui::Pos2::new(playhead_x - half_w, top);
-    let max = egui::Pos2::new(playhead_x + half_w, bottom);
-    let rect = egui::Rect::from_min_max(min, max);
+    let playhead_x = timeline_rect.left() + api.playhead_ticks() / api.ticks_per_point();
+    let rect = playhead.rect(playhead_x, timeline_rect, tracks_bottom);
     let mut response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
 
-    let timeline_w = timeline_rect.width();
-    let ticks_per_point = api.ticks_per_point();
-    let visible_ticks = ticks_per_point * timeline_w;
-
-    // Handle interactions.
     if response.clicked() || response.dragged() {
-        if let Some(pt) = response.interact_pointer_pos() {
-            let tick = (((pt.x - timeline_rect.min.x) / timeline_w) * visible_ticks).max(0.0);
+        if let Some(position) = response.interact_pointer_pos() {
+            let visible_ticks = api.ticks_per_point() * timeline_rect.width();
+            let tick = (((position.x - timeline_rect.min.x) / timeline_rect.width())
+                * visible_ticks)
+                .max(0.0);
             api.set_playhead_ticks(tick);
             response.mark_changed();
         }
     }
 
-    // Draw a thin rect.
     if timeline_rect.x_range().contains(playhead_x) {
         let visuals = ui.style().interact(&response);
-        let radius = 0.0;
         let stroke = egui::Stroke {
             width: 0.5,
             ..visuals.fg_stroke
         };
-        ui.painter().rect(rect, radius, visuals.bg_fill, stroke);
+        ui.painter().rect(
+            rect,
+            egui::CornerRadius::ZERO,
+            visuals.bg_fill,
+            stroke,
+            egui::StrokeKind::Middle,
+        );
     }
 
+    response
+}
+
+/// Paints a hover-only playhead at an absolute tick.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn paint_at(
+    ui: &mut egui::Ui,
+    axis: &TimeAxis,
+    tick: i64,
+    timeline_rect: egui::Rect,
+    tracks_bottom: f32,
+    playhead: Playhead,
+    style: &PlayheadStyle,
+) -> egui::Response {
+    let x = axis.tick_to_x(timeline_rect, tick);
+    let rect = playhead.rect(x, timeline_rect, tracks_bottom);
+    let response = ui.allocate_rect(rect, egui::Sense::hover());
+    if timeline_rect.x_range().contains(x) {
+        ui.painter().rect(
+            rect,
+            egui::CornerRadius::ZERO,
+            style.color,
+            egui::Stroke::NONE,
+            egui::StrokeKind::Middle,
+        );
+    }
     response
 }
