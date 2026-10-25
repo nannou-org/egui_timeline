@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+### Changed
+
+- Updated `egui` and `eframe` to 0.36 and `egui_plot` to 0.37, raising the minimum Rust version to 1.95.
+- `TimelineCtx::plot_ticks` takes `impl egui::AsId` (`Hash + Debug`), matching `egui_plot::Plot::new`.
+
 ## 0.4.0
 
 ### Added
@@ -11,5 +18,4 @@
 
 ### Changed
 
-- Updated `egui` and `eframe` to 0.36 and `egui_plot` to 0.37, raising the minimum Rust version to 1.95.
-- `TimelineCtx::plot_ticks` takes `impl egui::AsId` (`Hash + Debug`), matching `egui_plot::Plot::new`.
+- Updated `egui` and `eframe` to 0.34 and `egui_plot` to 0.35.
