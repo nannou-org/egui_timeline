@@ -9,11 +9,11 @@ keywords = ["egui", "timeline", "sequencer", "automation", "daw"]
 repository = "https://github.com/mitchmindtree/egui_timeline.git"
 homepage = "https://github.com/mitchmindtree/egui_timeline"
 edition = "2021"
-rust-version = "1.92"
+rust-version = "1.95"
 
 [dependencies]
-egui = "0.34"
-egui_plot = "0.35"
+egui = "0.36"
+egui_plot = "0.37"
 
 [dev-dependencies]
-eframe = "0.34"
+eframe = "0.36"

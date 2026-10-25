@@ -14,8 +14,9 @@ const SCREEN: Rect = Rect::from_min_max(Pos2::ZERO, Pos2::new(800.0, 600.0));
 fn input(events: Vec<Event>, modifiers: Modifiers) -> RawInput {
     RawInput {
         screen_rect: Some(SCREEN),
-        events,
-        modifiers,
+        events: std::iter::once(Event::ModifiersChanged(modifiers))
+            .chain(events)
+            .collect(),
         ..RawInput::default()
     }
 }
@@ -75,7 +76,7 @@ fn absolute_timeline_chain_lays_out_and_paints() {
         let mut background_called = false;
         let mut playhead_rect = Rect::NOTHING;
 
-        let output = context.run_ui(input(Vec::new(), Modifiers::default()), |ui| {
+        let mut output = context.run_ui(input(Vec::new(), Modifiers::default()), |ui| {
             let set_playhead = Timeline::new()
                 .header(120.0)
                 .show_with_axis(ui, &mut axis, &style)
@@ -107,6 +108,7 @@ fn absolute_timeline_chain_lays_out_and_paints() {
                 .rect;
         });
 
+        output.textures_delta.clear();
         assert!(background_called);
         assert!((playhead_rect.center().x - 360.0).abs() < 0.001);
         let shapes = flatten_shapes(&output);
@@ -133,9 +135,12 @@ fn show_axis_frame(
     modifiers: Modifiers,
 ) {
     let style = TimelineStyle::default();
-    let _ = context.run_ui(input(events, modifiers), |ui| {
-        Timeline::new().show_with_axis(ui, axis, &style);
-    });
+    context
+        .run_ui(input(events, modifiers), |ui| {
+            Timeline::new().show_with_axis(ui, axis, &style);
+        })
+        .textures_delta
+        .clear();
 }
 
 /// Applies horizontal pan and cursor-anchored Ctrl-wheel zoom to the owned axis.
@@ -182,9 +187,12 @@ fn ruler_frame(context: &egui::Context, events: Vec<Event>) -> Option<i64> {
     let style = TimelineStyle::default();
     let grid = GridSpec::new(Meter::DEFAULT);
     let mut seek = None;
-    let _ = context.run_ui(input(events, Modifiers::default()), |ui| {
-        seek = ruler::musical_with_axis(ui, &axis, &grid, &style.ruler).seek;
-    });
+    context
+        .run_ui(input(events, Modifiers::default()), |ui| {
+            seek = ruler::musical_with_axis(ui, &axis, &grid, &style.ruler).seek;
+        })
+        .textures_delta
+        .clear();
     seek
 }
 
@@ -209,12 +217,15 @@ fn absolute_playhead_is_non_interactive() {
     let mut axis = TimeAxis::new(0, 4.0);
     let style = TimelineStyle::default();
     let mut sense = egui::Sense::click();
-    let _ = context.run_ui(input(Vec::new(), Modifiers::default()), |ui| {
-        sense = Timeline::new()
-            .show_with_axis(ui, &mut axis, &style)
-            .tracks(|_, _, _| {})
-            .playhead_at(ui, &axis, 100, Playhead::new(), &style.playhead)
-            .sense;
-    });
+    context
+        .run_ui(input(Vec::new(), Modifiers::default()), |ui| {
+            sense = Timeline::new()
+                .show_with_axis(ui, &mut axis, &style)
+                .tracks(|_, _, _| {})
+                .playhead_at(ui, &axis, 100, Playhead::new(), &style.playhead)
+                .sense;
+        })
+        .textures_delta
+        .clear();
     assert_eq!(sense, egui::Sense::hover());
 }
