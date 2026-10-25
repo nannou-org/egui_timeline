@@ -72,7 +72,7 @@ impl eframe::App for TimelineExample {
             ui.ctx().request_repaint_after(Duration::from_millis(16));
         }
 
-        egui::Panel::top("controls").show_inside(ui, |ui| {
+        egui::Panel::top("controls").show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.selectable_value(&mut self.chain, Chain::Straight, "Straight");
                 ui.selectable_value(&mut self.chain, Chain::Triplet, "Triplet");
@@ -96,7 +96,7 @@ impl eframe::App for TimelineExample {
             ui.weak("Drag the ruler to seek. Scroll sideways to pan; Ctrl+scroll to zoom.");
         });
 
-        egui::CentralPanel::default().show_inside(ui, |ui| {
+        egui::CentralPanel::default().show(ui, |ui| {
             let divisions = match self.chain {
                 Chain::Straight => STRAIGHT_DIVISIONS,
                 Chain::Triplet => TRIPLET_DIVISIONS,

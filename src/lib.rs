@@ -1,10 +1,7 @@
 //! Generic musical-timeline layout and interactions for egui.
 
 use egui_plot as plot;
-use std::{
-    hash::Hash,
-    ops::{Range, RangeInclusive},
-};
+use std::ops::{Range, RangeInclusive};
 
 pub use axis::{Meter, TimeAxis};
 pub use grid::{Division, GridSpec, StepRank, STRAIGHT_DIVISIONS, TRIPLET_DIVISIONS};
@@ -130,8 +127,7 @@ impl Timeline {
         let hovered = ui.rect_contains_pointer(timeline_rect);
         let recovered_zoom = recovered_zoom_scroll(ui, timeline_rect);
         if hovered {
-            let (delta, ctrl) =
-                ui.input(|input| (input.smooth_scroll_delta, input.raw.modifiers.ctrl));
+            let (delta, ctrl) = ui.input(|input| (input.smooth_scroll_delta, input.modifiers.ctrl));
             if ctrl {
                 let y_delta = if delta.x != 0.0 || delta.y != 0.0 {
                     delta.y - delta.x
@@ -429,7 +425,7 @@ impl Show {
         tracks_fn: impl FnOnce(&TracksCtx, egui::Rect, &mut egui::Ui),
     ) -> SetPlayhead {
         let rect = self.ui.available_rect_before_wrap();
-        let scroll_source = if self.ui.input(|input| input.raw.modifiers.ctrl) {
+        let scroll_source = if self.ui.input(|input| input.modifiers.ctrl) {
             egui::containers::scroll_area::ScrollSource::NONE
         } else {
             egui::containers::scroll_area::ScrollSource::ALL
@@ -548,7 +544,7 @@ impl TimelineCtx {
     }
 
     /// Creates an egui plot configured for view-relative timeline ticks.
-    pub fn plot_ticks(&self, id_source: impl Hash, y: RangeInclusive<f32>) -> plot::Plot<'_> {
+    pub fn plot_ticks(&self, id_source: impl egui::AsId, y: RangeInclusive<f32>) -> plot::Plot<'_> {
         plot::Plot::new(id_source)
             .set_margin_fraction(egui::Vec2::ZERO)
             .show_grid(egui::Vec2b::FALSE)

@@ -214,8 +214,9 @@ fn input(events: Vec<egui::Event>, modifiers: egui::Modifiers) -> egui::RawInput
             egui::Pos2::ZERO,
             egui::vec2(800.0, 600.0),
         )),
-        events,
-        modifiers,
+        events: std::iter::once(egui::Event::ModifiersChanged(modifiers))
+            .chain(events)
+            .collect(),
         ..egui::RawInput::default()
     }
 }
@@ -244,10 +245,14 @@ fn timeline_frame_in_rect(
     modifiers: egui::Modifiers,
     rect: egui::Rect,
 ) {
-    let _ = context.run_ui(input(events, modifiers), |ui| {
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(*ui.layout()));
-        Timeline::new().show(&mut child, state);
-    });
+    context
+        .run_ui(input(events, modifiers), |ui| {
+            let mut child =
+                ui.new_child(egui::UiBuilder::new().max_rect(rect).layout(*ui.layout()));
+            Timeline::new().show(&mut child, state);
+        })
+        .textures_delta
+        .clear();
 }
 
 /// Preserves horizontal-pan and Ctrl-wheel callback behavior after the egui update.
@@ -535,7 +540,10 @@ fn ctrl_wheel_smoothing_does_not_replay_after_timeline_returns() {
         ctrl,
     );
     for _ in 0..16 {
-        let _ = context.run_ui(input(Vec::new(), ctrl), |_| {});
+        context
+            .run_ui(input(Vec::new(), ctrl), |_| {})
+            .textures_delta
+            .clear();
     }
     let before_return = state.zoom;
     timeline_frame(
@@ -550,9 +558,12 @@ fn ctrl_wheel_smoothing_does_not_replay_after_timeline_returns() {
 /// Runs one callback-driven ruler frame and reports response changes.
 fn ruler_frame(context: &egui::Context, state: &mut State, events: Vec<egui::Event>) -> bool {
     let mut changed = false;
-    let _ = context.run_ui(input(events, egui::Modifiers::default()), |ui| {
-        changed = ruler::musical(ui, state).changed();
-    });
+    context
+        .run_ui(input(events, egui::Modifiers::default()), |ui| {
+            changed = ruler::musical(ui, state).changed();
+        })
+        .textures_delta
+        .clear();
     changed
 }
 
@@ -560,10 +571,13 @@ fn ruler_frame(context: &egui::Context, state: &mut State, events: Vec<egui::Eve
 fn playhead_frame(context: &egui::Context, state: &mut State, events: Vec<egui::Event>) -> bool {
     let rect = egui::Rect::from_min_size(egui::pos2(0.0, 40.0), egui::vec2(800.0, 100.0));
     let mut changed = false;
-    let _ = context.run_ui(input(events, egui::Modifiers::default()), |ui| {
-        changed =
-            playhead::set(ui, state, rect, rect.bottom(), Playhead::new().width(8.0)).changed();
-    });
+    context
+        .run_ui(input(events, egui::Modifiers::default()), |ui| {
+            changed =
+                playhead::set(ui, state, rect, rect.bottom(), Playhead::new().width(8.0)).changed();
+        })
+        .textures_delta
+        .clear();
     changed
 }
 
