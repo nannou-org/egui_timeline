@@ -1,0 +1,5 @@
+# Run cargo-semver-checks before each release so an API-breaking change forces
+# the correct version bump even when commit messages don't flag it (for a 0.x
+# crate: a breaking change bumps the minor, otherwise the patch).
+[workspace]
+semver_check = true
